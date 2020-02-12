@@ -1,0 +1,50 @@
+receivers:
+    examplereceiver:
+
+processors:
+    filter:
+    filter/include:
+        action: include
+        metrics:
+            names:
+                - _1
+                - _2
+        traces:
+            names:
+                - _1
+    filter/exclude:
+        action: exclude
+        metrics:
+            names:
+                - _1
+                - _2
+        traces:
+            names:
+                - _1
+    filter/metricsOnly:
+        action: include
+        metrics:
+            names:
+                - _1
+                - _2
+    filter/tracesOnly:
+        action: include
+        traces:
+            names:
+                - _1
+                - _2
+        
+
+exporters:
+    exampleexporter:
+
+service:
+    pipelines:
+        traces:
+            receivers: [examplereceiver]
+            processors: [filter]
+            exporters: [exampleexporter]
+        metrics:
+            receivers: [examplereceiver]
+            processors: [filter]
+            exporters: [exampleexporter]
