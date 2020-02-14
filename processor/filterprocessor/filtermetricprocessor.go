@@ -23,29 +23,27 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector/consumer"
 	"github.com/open-telemetry/opentelemetry-collector/consumer/consumerdata"
 	"github.com/open-telemetry/opentelemetry-collector/processor"
+	"github.com/open-telemetry/opentelemetry-collector/processor/filterprocessor/internal/filterset"
 )
 
 type filterMetricProcessor struct {
-	processor        *filterProcessor
-	capabilities     processor.Capabilities
-	next             consumer.MetricsConsumer
-	metricNameToKeep map[string]bool
+	nameFilters  filterset.FilterSet
+	cfg          *Config
+	capabilities processor.Capabilities
+	next         consumer.MetricsConsumer
 }
 
 func newFilterMetricProcessor(next consumer.MetricsConsumer, cfg *Config) (*filterMetricProcessor, error) {
-	fp, err := newFilterProcessor(cfg)
+	nf, err := filterset.NewRegexpFilterSet(cfg.Metrics.NameFilters, filterset.WithCacheSize(cfg.Metrics.CacheSize))
 	if err != nil {
 		return nil, err
 	}
 
-	aErr := fp.addFilters(cfg.Metrics.NameFilters)
-	if aErr != nil {
-		return nil, err
-	}
-
 	return &filterMetricProcessor{
-		processor: fp,
-		next:      next,
+		nameFilters:  nf,
+		cfg:          cfg,
+		capabilities: processor.Capabilities{MutatesConsumedData: true},
+		next:         next,
 	}, nil
 }
 
@@ -73,12 +71,12 @@ func (fmp *filterMetricProcessor) ConsumeMetricsData(ctx context.Context, md con
 	})
 }
 
-// filterSpans filters the given spans based off the filterTraceProcessor's filters.
+// filterMetrics filters the given spans based off the filterTraceProcessor's filters.
 func (fmp *filterMetricProcessor) filterMetrics(metrics []*metricspb.Metric) []*metricspb.Metric {
 	keep := []*metricspb.Metric{}
 	for _, m := range metrics {
 
-		if fmp.keepMetric(m) {
+		if fmp.shouldKeepMetric(m) {
 			keep = append(keep, m)
 		}
 	}
@@ -86,17 +84,9 @@ func (fmp *filterMetricProcessor) filterMetrics(metrics []*metricspb.Metric) []*
 	return keep
 }
 
-// keepSpan determines whether or not a span should be kept based off the filterTraceProcessor's filters.
-func (fmp *filterMetricProcessor) keepMetric(metric *metricspb.Metric) bool {
-	p := fmp.processor
-	cfg := p.cfg
-
+// shouldKeepMetric determines whether or not a span should be kept based off the filterTraceProcessor's filters.
+func (fmp *filterMetricProcessor) shouldKeepMetric(metric *metricspb.Metric) bool {
 	name := metric.GetMetricDescriptor().GetName()
-	if prevResult, ok := fmp.metricNameToKeep[name]; ok {
-		return prevResult
-	}
-
-	nameMatch := p.stringMatchesFilters(name, cfg.Traces.NameFilters)
-	fmp.metricNameToKeep[name] = nameMatch && cfg.Action == INCLUDE
-	return fmp.metricNameToKeep[name]
+	nameMatch := fmp.nameFilters.Matches(name)
+	return nameMatch && fmp.cfg.Action == INCLUDE
 }

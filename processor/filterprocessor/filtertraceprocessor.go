@@ -23,28 +23,27 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector/consumer"
 	"github.com/open-telemetry/opentelemetry-collector/consumer/consumerdata"
 	"github.com/open-telemetry/opentelemetry-collector/processor"
+	"github.com/open-telemetry/opentelemetry-collector/processor/filterprocessor/internal/filterset"
 )
 
 type filterTraceProcessor struct {
-	processor      *filterProcessor
-	next           consumer.TraceConsumer
-	spanNameToKeep map[string]bool // caches whether trace should be kept by Span name
+	nameFilters  filterset.FilterSet
+	cfg          *Config
+	capabilities processor.Capabilities
+	next         consumer.TraceConsumer
 }
 
 func newFilterTraceProcessor(next consumer.TraceConsumer, cfg *Config) (*filterTraceProcessor, error) {
-	fp, err := newFilterProcessor(cfg)
+	nf, err := filterset.NewRegexpFilterSet(cfg.Traces.NameFilters, filterset.WithCacheSize(cfg.Traces.CacheSize))
 	if err != nil {
 		return nil, err
 	}
 
-	aErr := fp.addFilters(cfg.Traces.NameFilters)
-	if aErr != nil {
-		return nil, err
-	}
-
 	return &filterTraceProcessor{
-		processor: fp,
-		next:      next,
+		nameFilters:  nf,
+		cfg:          cfg,
+		capabilities: processor.Capabilities{MutatesConsumedData: true},
+		next:         next,
 	}, nil
 }
 
@@ -60,7 +59,7 @@ func (ftp *filterTraceProcessor) ConsumeTraceData(ctx context.Context, td consum
 
 // GetCapabilities returns the Capabilities assocciated with the resource processor.
 func (ftp *filterTraceProcessor) GetCapabilities() processor.Capabilities {
-	return ftp.processor.capabilities
+	return ftp.capabilities
 }
 
 // Start is invoked during service startup.
@@ -78,7 +77,7 @@ func (ftp *filterTraceProcessor) filterSpans(spans []*v1.Span) []*v1.Span {
 	keep := []*v1.Span{}
 	for _, s := range spans {
 
-		if ftp.keepSpan(s) {
+		if ftp.shouldKeepSpan(s) {
 			keep = append(keep, s)
 		}
 	}
@@ -86,17 +85,9 @@ func (ftp *filterTraceProcessor) filterSpans(spans []*v1.Span) []*v1.Span {
 	return keep
 }
 
-// keepSpan determines whether or not a span should be kept based off the filterTraceProcessor's filters.
-func (ftp *filterTraceProcessor) keepSpan(span *v1.Span) bool {
-	p := ftp.processor
-	cfg := p.cfg
-
+// shouldKeepSpan determines whether or not a span should be kept based off the filterTraceProcessor's filters.
+func (ftp *filterTraceProcessor) shouldKeepSpan(span *v1.Span) bool {
 	name := span.GetName().GetValue()
-	if prevResult, ok := ftp.spanNameToKeep[name]; ok {
-		return prevResult
-	}
-
-	nameMatch := p.stringMatchesFilters(name, cfg.Traces.NameFilters)
-	ftp.spanNameToKeep[name] = nameMatch && cfg.Action == INCLUDE
-	return ftp.spanNameToKeep[name]
+	nameMatch := ftp.nameFilters.Matches(name)
+	return nameMatch && ftp.cfg.Action == INCLUDE
 }

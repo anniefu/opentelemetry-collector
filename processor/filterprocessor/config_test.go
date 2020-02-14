@@ -25,7 +25,30 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector/config/configmodels"
 )
 
+// TestLoadingConfig tests loading testdata/config.yaml
 func TestLoadingConfig(t *testing.T) {
+	// list of filters used repeatedly on testdata/config.yaml
+	testDataFilters := []string{
+		".*/suffix",
+		"prefix/.*",
+		".*_suffix",
+		"prefix_.*",
+		".*/contains/.*",
+		".*_contains_.*",
+		"full/name/match",
+		"full_name_match",
+	}
+
+	testDataMetricFilter := MetricFilter{
+		NameFilters: testDataFilters,
+		CacheSize:   0,
+	}
+
+	testDataTraceFilter := TraceFilter{
+		NameFilters: testDataFilters,
+		CacheSize:   0,
+	}
+
 	factories, err := config.ExampleComponents()
 	assert.Nil(t, err)
 
@@ -36,31 +59,84 @@ func TestLoadingConfig(t *testing.T) {
 	assert.Nil(t, err)
 	require.NotNil(t, config)
 
-	p0 := config.Processors["filter"]
-	assert.Equal(t, &Config{
-		ProcessorSettings: configmodels.ProcessorSettings{
-			NameVal: typeStr,
-			TypeVal: typeStr,
+	tests := []struct {
+		filterName string
+		expCfg     *Config
+	}{
+		{
+			filterName: "filter",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: typeStr,
+					TypeVal: typeStr,
+				},
+			},
+		}, {
+			filterName: "filter/include",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: "filter/include",
+					TypeVal: typeStr,
+				},
+				Action:  INCLUDE,
+				Metrics: testDataMetricFilter,
+				Traces:  testDataTraceFilter,
+			},
+		}, {
+			filterName: "filter/exclude",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: "filter/exclude",
+					TypeVal: typeStr,
+				},
+				Action:  EXCLUDE,
+				Metrics: testDataMetricFilter,
+				Traces:  testDataTraceFilter,
+			},
+		}, {
+			filterName: "filter/metricsonly",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: "filter/metricsonly",
+					TypeVal: typeStr,
+				},
+				Action:  INCLUDE,
+				Metrics: testDataMetricFilter,
+			},
+		}, {
+			filterName: "filter/tracesonly",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: "filter/tracesonly",
+					TypeVal: typeStr,
+				},
+				Action: EXCLUDE,
+				Traces: testDataTraceFilter,
+			},
+		}, {
+			filterName: "filter/limitedcache",
+			expCfg: &Config{
+				ProcessorSettings: configmodels.ProcessorSettings{
+					NameVal: "filter/limitedcache",
+					TypeVal: typeStr,
+				},
+				Action: EXCLUDE,
+				Metrics: MetricFilter{
+					NameFilters: testDataFilters,
+					CacheSize:   5,
+				},
+				Traces: TraceFilter{
+					NameFilters: testDataFilters,
+					CacheSize:   10,
+				},
+			},
 		},
-	}, p0)
+	}
 
-	p1 := config.Processors["filter/include"]
-	assert.Equal(t, &Config{
-		ProcessorSettings: configmodels.ProcessorSettings{
-			NameVal: "filter/include",
-			TypeVal: typeStr,
-		},
-		Action: INCLUDE,
-		Metrics: MetricFilter{
-			NameFilters: []Filter{
-				"_1",
-				"_2",
-			},
-		},
-		Traces: TraceFilter{
-			NameFilters: []Filter{
-				"_1",
-			},
-		},
-	}, p1)
+	for _, test := range tests {
+		t.Run(test.filterName, func(t *testing.T) {
+			cfg := config.Processors[test.filterName]
+			assert.Equal(t, test.expCfg, cfg)
+		})
+	}
 }

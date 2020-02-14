@@ -16,6 +16,7 @@ package resourceprocessor
 
 import (
 	"context"
+	"log"
 
 	resourcepb "github.com/census-instrumentation/opencensus-proto/gen-go/resource/v1"
 
@@ -128,6 +129,8 @@ func mergeResource(to, from *resourcepb.Resource) *resourcepb.Resource {
 			to.Labels[k] = v
 		}
 	}
+
+	log.Printf("%#v", to)
 	return to
 }
 

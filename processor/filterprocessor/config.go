@@ -39,17 +39,16 @@ const (
 	EXCLUDE Action = "exclude"
 )
 
-// Filter is an re2 regex string, see https://github.com/google/re2/wiki/Syntax.
-type Filter string
-
 // MetricFilter filters by Metric properties.
 type MetricFilter struct {
 	// NameFilters filters by the Name specified in the Metric's MetricDescriptor.
-	NameFilters []Filter `mapstructure:"names"`
+	NameFilters []string `mapstructure:"names"`
+	CacheSize   int      `mapstructure:"cachesize"`
 }
 
 // TraceFilter filters by Span properties.
 type TraceFilter struct {
 	// NameFilters filters the Name specified in the Span.
-	NameFilters []Filter `mapstructure:"names"`
+	NameFilters []string `mapstructure:"names"`
+	CacheSize   int      `mapstructure:"cachesize"`
 }

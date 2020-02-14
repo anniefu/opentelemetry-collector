@@ -4,36 +4,101 @@ receivers:
 processors:
     filter:
     filter/include:
+        # any names NOT matching filters are excluded from remainder of pipeline
         action: include
         metrics:
             names:
-                - _1
-                - _2
+                # re2 regexp patterns
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
         traces:
             names:
-                - _1
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
     filter/exclude:
+        # any names matching filters are excluded from remainder of pipeline
         action: exclude
         metrics:
             names:
-                - _1
-                - _2
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
         traces:
             names:
-                - _1
-    filter/metricsOnly:
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
+    filter/metricsonly:
         action: include
         metrics:
             names:
-                - _1
-                - _2
-    filter/tracesOnly:
-        action: include
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
+    filter/tracesonly:
+        action: exclude
         traces:
             names:
-                - _1
-                - _2
-        
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
+    filter/limitedcache:
+        # any names matching filters are excluded from remainder of pipeline
+        action: exclude
+        metrics:
+            names:
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
+            cachesize: 5
+        traces:
+            names:
+                - .*/suffix
+                - prefix/.*
+                - .*_suffix
+                - prefix_.*
+                - .*/contains/.*
+                - .*_contains_.*
+                - full/name/match
+                - full_name_match
+            cachesize: 10
 
 exporters:
     exampleexporter:

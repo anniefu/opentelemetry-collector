@@ -10,6 +10,7 @@ Supported processors (sorted alphabetically):
 - [Queued Processor](#queued)
 - [Span Processor](#span)
 - [Tail Sampling Processor](#tail_sampling)
+- [Filter Processor](#filter)
 
 ## Data Ownership
 
