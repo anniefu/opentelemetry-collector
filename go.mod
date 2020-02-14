@@ -9,6 +9,7 @@ require (
 	contrib.go.opencensus.io/exporter/stackdriver v0.13.0 // indirect
 	contrib.go.opencensus.io/resource v0.1.2
 	github.com/apache/thrift v0.0.0-20161221203622-b2a4d4ae21c7
+	github.com/Azure/go-autorest v13.0.0+incompatible
 	github.com/bmizerany/perks v0.0.0-20141205001514-d9a9656a3a4b // indirect
 	github.com/census-instrumentation/opencensus-proto v0.2.1
 	github.com/client9/misspell v0.3.4
