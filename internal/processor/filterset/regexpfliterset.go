@@ -24,8 +24,9 @@ import (
 // regexpFilterSet encapsulates a set of filters and caches match results.
 // Filters are re2 regex strings.
 type regexpFilterSet struct {
-	regexes map[string]*regexp.Regexp
-	cache   *lru.Cache
+	regexes      map[string]*regexp.Regexp
+	cacheEnabled bool
+	cache        *lru.Cache
 }
 
 // rfsOption are options that mutate the regexFilterSet.
@@ -36,6 +37,7 @@ type rfsOption func(*regexpFilterSet)
 // The cache stores the results of previous calls to Matches.
 func WithCacheSize(size int) rfsOption {
 	return func(rfs *regexpFilterSet) {
+		rfs.cacheEnabled = true
 		rfs.cache = lru.New(size)
 	}
 }
@@ -45,7 +47,6 @@ func WithCacheSize(size int) rfsOption {
 func NewRegexpFilterSet(filters []string, opts ...rfsOption) (FilterSet, error) {
 	fs := &regexpFilterSet{
 		regexes: map[string]*regexp.Regexp{},
-		cache:   lru.New(0), // 0 means unlimited size
 	}
 
 	for _, o := range opts {
@@ -59,26 +60,27 @@ func NewRegexpFilterSet(filters []string, opts ...rfsOption) (FilterSet, error) 
 	return fs, nil
 }
 
-// Matches returns true if the given string matches any of the regexFilterSet's filters.
-// The given string must be fully matches by at least one filter's re2 regex.
+// Matches returns true if the given string matches any of the FilterSet's filters.
+// The given string must be fully matched by at least one filter's re2 regex.
 func (rfs *regexpFilterSet) Matches(toMatch string) bool {
-	if v, ok := rfs.cache.Get(toMatch); ok {
-		return v.(bool)
+	if rfs.cacheEnabled {
+		if v, ok := rfs.cache.Get(toMatch); ok {
+			return v.(bool)
+		}
 	}
-
-	// if v, ok := rfs.cachedMatches[toMatch]; ok {
-	// 	return v
-	// }
 
 	for _, r := range rfs.regexes {
 		if r.MatchString(toMatch) {
-			rfs.cache.Add(toMatch, true)
-			// rfs.cachedMatches[toMatch] = true
+			if rfs.cacheEnabled {
+				rfs.cache.Add(toMatch, true)
+			}
 			return true
 		}
 	}
 
-	rfs.cache.Add(toMatch, false)
+	if rfs.cacheEnabled {
+		rfs.cache.Add(toMatch, false)
+	}
 	return false
 }
 

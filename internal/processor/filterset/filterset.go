@@ -20,3 +20,13 @@ type FilterSet interface {
 	// of the filters encapsulated by the FilterSet.
 	Matches(string) bool
 }
+
+// FilterType indicates the type of filter pattern used for matching strings.
+type FilterType string
+
+const (
+	// REGEXP filters use re2 regexp pattern matching.
+	REGEXP FilterType = "regexp"
+	// STRICT filters use exact string matching.
+	STRICT FilterType = "strict"
+)

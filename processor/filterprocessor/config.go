@@ -16,6 +16,7 @@ package filterprocessor
 
 import (
 	"github.com/open-telemetry/opentelemetry-collector/config/configmodels"
+	"github.com/open-telemetry/opentelemetry-collector/internal/processor/filterset"
 )
 
 // Config defines configuration for Resource processor.
@@ -41,14 +42,12 @@ const (
 
 // MetricFilter filters by Metric properties.
 type MetricFilter struct {
-	// NameFilters filters by the Name specified in the Metric's MetricDescriptor.
-	NameFilters []string `mapstructure:"names"`
-	CacheSize   int      `mapstructure:"cachesize"`
+	// NameFilter filters by the Name specified in the Metric's MetricDescriptor.
+	NameFilter filterset.FilterConfig `mapstructure:"names"`
 }
 
 // TraceFilter filters by Span properties.
 type TraceFilter struct {
-	// NameFilters filters the Name specified in the Span.
-	NameFilters []string `mapstructure:"names"`
-	CacheSize   int      `mapstructure:"cachesize"`
+	// NameFilter filters the Name specified in the Span.
+	NameFilter filterset.FilterConfig `mapstructure:"names"`
 }
