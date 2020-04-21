@@ -22,6 +22,7 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-collector/config"
 	"github.com/open-telemetry/opentelemetry-collector/config/configmodels"
+	fsfactory "github.com/open-telemetry/opentelemetry-collector/internal/processor/filterset/factory"
 	"github.com/open-telemetry/opentelemetry-collector/internal/processor/span"
 )
 
@@ -82,13 +83,13 @@ func TestLoadConfig(t *testing.T) {
 		},
 		MatchConfig: span.MatchConfig{
 			Include: &span.MatchProperties{
-				MatchType: span.MatchTypeRegexp,
-				Services:  []string{`banks`},
-				SpanNames: []string{"^(.*?)/(.*?)$"},
+				MatchConfig: *createMatchConfig(fsfactory.REGEXP),
+				Services:    []string{`banks`},
+				SpanNames:   []string{"^(.*?)/(.*?)$"},
 			},
 			Exclude: &span.MatchProperties{
-				MatchType: span.MatchTypeStrict,
-				SpanNames: []string{`donot/change`},
+				MatchConfig: *createMatchConfig(fsfactory.STRICT),
+				SpanNames:   []string{`donot/change`},
 			},
 		},
 		Rename: Name{
@@ -97,4 +98,10 @@ func TestLoadConfig(t *testing.T) {
 			},
 		},
 	})
+}
+
+func createMatchConfig(matchType fsfactory.MatchType) *fsfactory.MatchConfig {
+	return &fsfactory.MatchConfig{
+		MatchType: matchType,
+	}
 }

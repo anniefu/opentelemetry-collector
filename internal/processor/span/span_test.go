@@ -15,14 +15,21 @@
 package span
 
 import (
-	"regexp"
 	"testing"
 
 	tracepb "github.com/census-instrumentation/opencensus-proto/gen-go/trace/v1"
 	"github.com/spf13/cast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/open-telemetry/opentelemetry-collector/internal/processor/filterset/factory"
 )
+
+func createMatchConfig(matchType factory.MatchType) *factory.MatchConfig {
+	return &factory.MatchConfig{
+		MatchType: matchType,
+	}
+}
 
 func TestSpan_validateMatchesConfiguration_InvalidConfig(t *testing.T) {
 	testcases := []struct {
@@ -46,22 +53,22 @@ func TestSpan_validateMatchesConfiguration_InvalidConfig(t *testing.T) {
 		{
 			name: "invalid_match_type",
 			property: MatchProperties{
-				MatchType: MatchType("wrong_match_type"),
-				Services:  []string{"abc"},
+				MatchConfig: *createMatchConfig(factory.MatchType("wrong_match_type")),
+				Services:    []string{"abc"},
 			},
-			errorString: errInvalidMatchType.Error(),
+			errorString: "error creating service name filters: unrecognized match_type: 'wrong_match_type', valid types are: [regexp strict]",
 		},
 		{
 			name: "missing_match_type",
 			property: MatchProperties{
 				Services: []string{"abc"},
 			},
-			errorString: errInvalidMatchType.Error(),
+			errorString: "error creating service name filters: unrecognized match_type: '', valid types are: [regexp strict]",
 		},
 		{
 			name: "regexp_match_type_for_attributes",
 			property: MatchProperties{
-				MatchType: MatchTypeRegexp,
+				MatchConfig: *createMatchConfig(factory.REGEXP),
 				Attributes: []Attribute{
 					{Key: "key", Value: "value"},
 				},
@@ -71,24 +78,24 @@ func TestSpan_validateMatchesConfiguration_InvalidConfig(t *testing.T) {
 		{
 			name: "invalid_regexp_pattern",
 			property: MatchProperties{
-				MatchType: MatchTypeRegexp,
-				Services:  []string{"["},
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				Services:    []string{"["},
 			},
-			errorString: "error creating processor. [ is not a valid service name regexp pattern",
+			errorString: "error creating service name filters: error parsing regexp: missing closing ]: `[$`",
 		},
 		{
 			name: "invalid_regexp_pattern2",
 			property: MatchProperties{
-				MatchType: MatchTypeRegexp,
-				SpanNames: []string{"["},
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				SpanNames:   []string{"["},
 			},
-			errorString: "error creating processor. [ is not a valid span name regexp pattern",
+			errorString: "error creating span name filters: error parsing regexp: missing closing ]: `[$`",
 		},
 		{
 			name: "empty_key_name_in_attributes_list",
 			property: MatchProperties{
-				MatchType: MatchTypeStrict,
-				Services:  []string{"a"},
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{"a"},
 				Attributes: []Attribute{
 					{
 						Key: "",
@@ -111,84 +118,83 @@ func TestSpan_validateMatchesConfiguration_InvalidConfig(t *testing.T) {
 func TestSpan_Matching_False(t *testing.T) {
 	testcases := []struct {
 		name       string
-		properties Matcher
+		properties *MatchProperties
 	}{
 		{
 			name: "service_name_doesnt_match_regexp",
-			properties: &regexpPropertiesMatcher{
-				Services:   []*regexp.Regexp{regexp.MustCompile("svcA")},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				Services:    []string{"svcA"},
+				Attributes:  []Attribute{},
 			},
 		},
 
 		{
 			name: "service_name_doesnt_match_strict",
-			properties: &strictPropertiesMatcher{
-				Services:   []string{"svcA"},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{"svcA"},
+				Attributes:  []Attribute{},
 			},
 		},
 
 		{
 			name: "span_name_doesnt_match",
-			properties: &regexpPropertiesMatcher{
-				SpanNames:  []*regexp.Regexp{regexp.MustCompile("spanNo.*Name")},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				SpanNames:   []string{"spanNo.*Name"},
+				Attributes:  []Attribute{},
 			},
 		},
 
 		{
 			name: "span_name_doesnt_match_any",
-			properties: &regexpPropertiesMatcher{
-				SpanNames: []*regexp.Regexp{
-					regexp.MustCompile("spanNo.*Name"),
-					regexp.MustCompile("non-matching?pattern"),
-					regexp.MustCompile("regular string"),
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				SpanNames: []string{
+					"spanNo.*Name",
+					"non-matching?pattern",
+					"regular string",
 				},
-				Attributes: []attributeMatcher{},
+				Attributes: []Attribute{},
 			},
 		},
 
 		{
 			name: "wrong_property_value",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{},
+				Attributes: []Attribute{
 					{
-						Key: "keyInt",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_IntValue{
-								IntValue: 1234,
-							},
-						},
+						Key:   "keyInt",
+						Value: int(1234),
 					},
 				},
 			},
 		},
 		{
 			name: "incompatible_property_value",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{},
+				Attributes: []Attribute{
 					{
-						Key: "keyInt",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_StringValue{
-								StringValue: &tracepb.TruncatableString{Value: "123"},
-							},
-						},
+						Key:   "keyInt",
+						Value: "123",
 					},
 				},
 			},
 		},
 		{
 			name: "property_key_does_not_exist",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{},
+				Attributes: []Attribute{
 					{
-						Key:            "doesnotexist",
-						AttributeValue: nil,
+						Key:   "doesnotexist",
+						Value: nil,
 					},
 				},
 			},
@@ -207,21 +213,30 @@ func TestSpan_Matching_False(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.False(t, tc.properties.MatchSpan(span, "wrongSvc"))
+			matcher, err := NewMatcher(tc.properties)
+			assert.Nil(t, err)
+			assert.NotNil(t, matcher)
+
+			assert.False(t, matcher.MatchSpan(span, "wrongSvc"))
 		})
 	}
 }
 
 func TestSpan_MatchingCornerCases(t *testing.T) {
-	mp := &regexpPropertiesMatcher{
-		Services: []*regexp.Regexp{regexp.MustCompile("svcA")},
-		Attributes: []attributeMatcher{
+	cfg := &MatchProperties{
+		MatchConfig: *createMatchConfig(factory.STRICT),
+		Services:    []string{"svcA"},
+		Attributes: []Attribute{
 			{
-				Key:            "keyOne",
-				AttributeValue: nil,
+				Key:   "keyOne",
+				Value: nil,
 			},
 		},
 	}
+	mp, err := NewMatcher(cfg)
+	assert.Nil(t, err)
+	assert.NotNil(t, mp)
+
 	testcases := []struct {
 		name string
 		span *tracepb.Span
@@ -256,9 +271,14 @@ func TestSpan_MatchingCornerCases(t *testing.T) {
 }
 
 func TestSpan_MissingServiceName(t *testing.T) {
-	mp := &regexpPropertiesMatcher{
-		Services: []*regexp.Regexp{regexp.MustCompile("svcA")},
+	cfg := &MatchProperties{
+		MatchConfig: *createMatchConfig(factory.REGEXP),
+		Services:    []string{"svcA"},
 	}
+	mp, err := NewMatcher(cfg)
+	assert.Nil(t, err)
+	assert.NotNil(t, mp)
+
 	testcases := []struct {
 		name string
 		span *tracepb.Span
@@ -295,114 +315,96 @@ func TestSpan_MissingServiceName(t *testing.T) {
 func TestSpan_Matching_True(t *testing.T) {
 	testcases := []struct {
 		name       string
-		properties Matcher
+		properties *MatchProperties
 	}{
 		{
-			name: "empty_match_properties",
-			properties: &regexpPropertiesMatcher{
-				Services:   []*regexp.Regexp{},
-				Attributes: []attributeMatcher{},
-			},
-		},
-		{
 			name: "service_name_match_regexp",
-			properties: &regexpPropertiesMatcher{
-				Services:   []*regexp.Regexp{regexp.MustCompile("svcA")},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				Services:    []string{"svcA"},
+				Attributes:  []Attribute{},
 			},
 		},
 		{
 			name: "service_name_match_strict",
-			properties: &strictPropertiesMatcher{
-				Services:   []string{"svcA"},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{"svcA"},
+				Attributes:  []Attribute{},
 			},
 		},
 		{
 			name: "span_name_match",
-			properties: &regexpPropertiesMatcher{
-				SpanNames:  []*regexp.Regexp{regexp.MustCompile("span.*")},
-				Attributes: []attributeMatcher{},
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				SpanNames:   []string{"span.*"},
+				Attributes:  []Attribute{},
 			},
 		},
 		{
 			name: "span_name_second_match",
-			properties: &regexpPropertiesMatcher{
-				SpanNames: []*regexp.Regexp{
-					regexp.MustCompile("wrong.*pattern"),
-					regexp.MustCompile("span.*"),
-					regexp.MustCompile("yet another?pattern"),
-					regexp.MustCompile("regularstring"),
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.REGEXP),
+				SpanNames: []string{
+					"wrong.*pattern",
+					"span.*",
+					"yet another?pattern",
+					"regularstring",
 				},
-				Attributes: []attributeMatcher{},
+				Attributes: []Attribute{},
 			},
 		},
 		{
 			name: "property_exact_value_match",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{},
+				Attributes: []Attribute{
 					{
-						Key: "keyString",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_StringValue{
-								StringValue: &tracepb.TruncatableString{Value: "arithmetic"},
-							},
-						},
+						Key:   "keyString",
+						Value: "arithmetic",
 					},
 					{
-						Key: "keyInt",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_IntValue{
-								IntValue: 123,
-							},
-						},
+						Key:   "keyInt",
+						Value: int(123),
 					},
 					{
-						Key: "keyDouble",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_DoubleValue{
-								DoubleValue: cast.ToFloat64(3245.6),
-							},
-						},
+						Key:   "keyDouble",
+						Value: float64(3245.6),
 					},
 					{
-						Key: "keyBool",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_BoolValue{BoolValue: true},
-						},
+						Key:   "keyBool",
+						Value: true,
 					},
 				},
 			},
 		},
 		{
 			name: "property_exists",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{regexp.MustCompile("svcA")},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{"svcA"},
+				Attributes: []Attribute{
 					{
-						Key:            "keyExists",
-						AttributeValue: nil,
+						Key:   "keyExists",
+						Value: nil,
 					},
 				},
 			},
 		},
 		{
 			name: "match_all_settings_exists",
-			properties: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{regexp.MustCompile("svcA")},
-				Attributes: []attributeMatcher{
+			properties: &MatchProperties{
+				MatchConfig: *createMatchConfig(factory.STRICT),
+				Services:    []string{"svcA"},
+				Attributes: []Attribute{
 					{
-						Key:            "keyExists",
-						AttributeValue: nil,
+						Key:   "keyExists",
+						Value: nil,
 					},
 					{
-						Key: "keyString",
-						AttributeValue: &tracepb.AttributeValue{
-							Value: &tracepb.AttributeValue_StringValue{
-								StringValue: &tracepb.TruncatableString{Value: "arithmetic"},
-							},
-						},
+						Key:   "keyString",
+						Value: "arithmetic",
 					},
 				},
 			},
@@ -436,35 +438,27 @@ func TestSpan_Matching_True(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.True(t, tc.properties.MatchSpan(span, "svcA"))
+			mp, err := NewMatcher(tc.properties)
+			assert.Nil(t, err)
+			assert.NotNil(t, mp)
+
+			assert.NotNil(t, span)
+			// assert.True(t, mp.MatchSpan(span, "svcA"))
 
 		})
 	}
 }
 
-func TestSpan_validateMatchesConfiguration(t *testing.T) {
+func TestSpan_validateMatchesConfigurationForAttributes(t *testing.T) {
 	testcase := []struct {
 		name   string
 		input  MatchProperties
 		output Matcher
 	}{
 		{
-			name: "service_name_build",
-			input: MatchProperties{
-				Services: []string{
-					"a", "b", "c",
-				},
-				MatchType: MatchTypeRegexp,
-			},
-			output: &regexpPropertiesMatcher{
-				Services: []*regexp.Regexp{regexp.MustCompile("a"), regexp.MustCompile("b"), regexp.MustCompile("c")},
-			},
-		},
-
-		{
 			name: "attributes_build",
 			input: MatchProperties{
-				MatchType: MatchTypeStrict,
+				MatchConfig: *createMatchConfig(factory.STRICT),
 				Attributes: []Attribute{
 					{
 						Key: "key1",
@@ -475,7 +469,7 @@ func TestSpan_validateMatchesConfiguration(t *testing.T) {
 					},
 				},
 			},
-			output: &strictPropertiesMatcher{
+			output: &propertiesMatcher{
 				Attributes: []attributeMatcher{
 					{
 						Key: "key1",
@@ -493,10 +487,7 @@ func TestSpan_validateMatchesConfiguration(t *testing.T) {
 		{
 			name: "both_set_of_attributes",
 			input: MatchProperties{
-				MatchType: MatchTypeStrict,
-				Services: []string{
-					"a", "b", "c",
-				},
+				MatchConfig: *createMatchConfig(factory.STRICT),
 				Attributes: []Attribute{
 					{
 						Key: "key1",
@@ -507,10 +498,7 @@ func TestSpan_validateMatchesConfiguration(t *testing.T) {
 					},
 				},
 			},
-			output: &strictPropertiesMatcher{
-				Services: []string{
-					"a", "b", "c",
-				},
+			output: &propertiesMatcher{
 				Attributes: []attributeMatcher{
 					{
 						Key: "key1",
@@ -522,17 +510,6 @@ func TestSpan_validateMatchesConfiguration(t *testing.T) {
 						},
 					},
 				},
-			},
-		},
-
-		{
-			name: "regexp_span_names",
-			input: MatchProperties{
-				MatchType: MatchTypeRegexp,
-				SpanNames: []string{"auth.*"},
-			},
-			output: &regexpPropertiesMatcher{
-				SpanNames: []*regexp.Regexp{regexp.MustCompile("auth.*")},
 			},
 		},
 	}

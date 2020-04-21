@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-telemetry/opentelemetry-collector/config"
 	"github.com/open-telemetry/opentelemetry-collector/config/configmodels"
+	fsfactory "github.com/open-telemetry/opentelemetry-collector/internal/processor/filterset/factory"
 	"github.com/open-telemetry/opentelemetry-collector/internal/processor/span"
 )
 
@@ -104,8 +105,8 @@ func TestLoadingConifg(t *testing.T) {
 		},
 		MatchConfig: span.MatchConfig{
 			Exclude: &span.MatchProperties{
-				MatchType: span.MatchTypeStrict,
-				Services:  []string{"svcA", "svcB"},
+				MatchConfig: *createMatchConfig(fsfactory.STRICT),
+				Services:    []string{"svcA", "svcB"},
 				Attributes: []span.Attribute{
 					{Key: "env", Value: "dev"},
 					{Key: "test_request"},
@@ -126,8 +127,8 @@ func TestLoadingConifg(t *testing.T) {
 		},
 		MatchConfig: span.MatchConfig{
 			Include: &span.MatchProperties{
-				MatchType: span.MatchTypeRegexp,
-				Services:  []string{"auth.*", "login.*"},
+				MatchConfig: *createMatchConfig(fsfactory.REGEXP),
+				Services:    []string{"auth.*", "login.*"},
 			},
 		},
 		Actions: []ActionKeyValue{
@@ -144,11 +145,11 @@ func TestLoadingConifg(t *testing.T) {
 		},
 		MatchConfig: span.MatchConfig{
 			Include: &span.MatchProperties{
-				MatchType: span.MatchTypeStrict,
-				Services:  []string{"svcA", "svcB"},
+				MatchConfig: *createMatchConfig(fsfactory.STRICT),
+				Services:    []string{"svcA", "svcB"},
 			},
 			Exclude: &span.MatchProperties{
-				MatchType: span.MatchTypeStrict,
+				MatchConfig: *createMatchConfig(fsfactory.STRICT),
 				Attributes: []span.Attribute{
 					{Key: "redact_trace", Value: false},
 				},
@@ -196,12 +197,12 @@ func TestLoadingConifg(t *testing.T) {
 		},
 		MatchConfig: span.MatchConfig{
 			Include: &span.MatchProperties{
-				MatchType: span.MatchTypeRegexp,
-				Services:  []string{"auth.*"},
+				MatchConfig: *createMatchConfig(fsfactory.REGEXP),
+				Services:    []string{"auth.*"},
 			},
 			Exclude: &span.MatchProperties{
-				MatchType: span.MatchTypeRegexp,
-				SpanNames: []string{"login.*"},
+				MatchConfig: *createMatchConfig(fsfactory.REGEXP),
+				SpanNames:   []string{"login.*"},
 			},
 		},
 		Actions: []ActionKeyValue{

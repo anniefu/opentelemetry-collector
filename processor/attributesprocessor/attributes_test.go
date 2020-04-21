@@ -28,6 +28,7 @@ import (
 	"github.com/open-telemetry/opentelemetry-collector/component"
 	"github.com/open-telemetry/opentelemetry-collector/consumer/consumerdata"
 	"github.com/open-telemetry/opentelemetry-collector/exporter/exportertest"
+	fsfactory "github.com/open-telemetry/opentelemetry-collector/internal/processor/filterset/factory"
 	"github.com/open-telemetry/opentelemetry-collector/internal/processor/span"
 )
 
@@ -912,14 +913,14 @@ func TestAttributes_FilterSpans(t *testing.T) {
 		{Key: "attribute1", Action: INSERT, Value: 123},
 	}
 	oCfg.Include = &span.MatchProperties{
-		Services:  []string{"svcA", "svcB.*"},
-		MatchType: span.MatchTypeRegexp,
+		Services:    []string{"svcA", "svcB.*"},
+		MatchConfig: *createMatchConfig(fsfactory.REGEXP),
 	}
 	oCfg.Exclude = &span.MatchProperties{
 		Attributes: []span.Attribute{
 			{Key: "NoModification", Value: true},
 		},
-		MatchType: span.MatchTypeStrict,
+		MatchConfig: *createMatchConfig(fsfactory.STRICT),
 	}
 	tp, err := factory.CreateTraceProcessor(zap.NewNop(), exportertest.NewNopTraceExporter(), cfg)
 	require.Nil(t, err)
@@ -994,12 +995,12 @@ func TestAttributes_FilterSpansByNameStrict(t *testing.T) {
 		{Key: "attribute1", Action: INSERT, Value: 123},
 	}
 	oCfg.Include = &span.MatchProperties{
-		SpanNames: []string{"apply", "dont_apply"},
-		MatchType: span.MatchTypeStrict,
+		SpanNames:   []string{"apply", "dont_apply"},
+		MatchConfig: *createMatchConfig(fsfactory.STRICT),
 	}
 	oCfg.Exclude = &span.MatchProperties{
-		SpanNames: []string{"dont_apply"},
-		MatchType: span.MatchTypeStrict,
+		SpanNames:   []string{"dont_apply"},
+		MatchConfig: *createMatchConfig(fsfactory.STRICT),
 	}
 	tp, err := factory.CreateTraceProcessor(zap.NewNop(), exportertest.NewNopTraceExporter(), cfg)
 	require.Nil(t, err)
@@ -1074,12 +1075,12 @@ func TestAttributes_FilterSpansByNameRegexp(t *testing.T) {
 		{Key: "attribute1", Action: INSERT, Value: 123},
 	}
 	oCfg.Include = &span.MatchProperties{
-		SpanNames: []string{"^apply.*"},
-		MatchType: span.MatchTypeRegexp,
+		SpanNames:   []string{"^apply.*"},
+		MatchConfig: *createMatchConfig(fsfactory.REGEXP),
 	}
 	oCfg.Exclude = &span.MatchProperties{
-		SpanNames: []string{".*dont_apply$"},
-		MatchType: span.MatchTypeRegexp,
+		SpanNames:   []string{".*dont_apply$"},
+		MatchConfig: *createMatchConfig(fsfactory.REGEXP),
 	}
 	tp, err := factory.CreateTraceProcessor(zap.NewNop(), exportertest.NewNopTraceExporter(), cfg)
 	require.Nil(t, err)
@@ -1250,5 +1251,11 @@ func BenchmarkAttributes_FilterSpansByName(b *testing.B) {
 				},
 			},
 		}, traceData)
+	}
+}
+
+func createMatchConfig(matchType fsfactory.MatchType) *fsfactory.MatchConfig {
+	return &fsfactory.MatchConfig{
+		MatchType: matchType,
 	}
 }

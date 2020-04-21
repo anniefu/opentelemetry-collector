@@ -25,6 +25,13 @@ import (
 // Factory can be used to create FilterSets.
 type Factory struct{}
 
+var (
+	validMatchTypes = []MatchType{
+		REGEXP,
+		STRICT,
+	}
+)
+
 // CreateFilterSet creates a FilterSet using cfg.
 func (f *Factory) CreateFilterSet(filters []string, cfg *MatchConfig) (filterset.FilterSet, error) {
 	switch cfg.MatchType {
@@ -33,7 +40,7 @@ func (f *Factory) CreateFilterSet(filters []string, cfg *MatchConfig) (filterset
 	case STRICT:
 		return f.createStrictFilterSet(filters, cfg)
 	default:
-		return nil, fmt.Errorf("unrecognized filter type: %v", cfg.MatchType)
+		return nil, fmt.Errorf("unrecognized match_type: '%v', valid types are: %v", cfg.MatchType, validMatchTypes)
 	}
 }
 
