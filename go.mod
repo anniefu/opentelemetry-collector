@@ -18,10 +18,10 @@ require (
 	github.com/gogo/googleapis v1.3.0 // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/golangci/golangci-lint v1.30.0
 	github.com/google/addlicense v0.0.0-20200622132530-df58acafd6d5
-	github.com/google/go-cmp v0.5.1
+	github.com/google/go-cmp v0.5.4
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
@@ -37,9 +37,9 @@ require (
 	github.com/ory/go-acc v0.2.5
 	github.com/pavius/impi v0.0.3
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/client_golang v1.7.1
-	github.com/prometheus/common v0.10.0
-	github.com/prometheus/procfs v0.1.3
+	github.com/prometheus/client_golang v1.10.0
+	github.com/prometheus/common v0.27.0
+	github.com/prometheus/procfs v0.6.0
 	github.com/prometheus/prometheus v1.8.2-0.20200626085723-c448ada63d83
 	github.com/rs/cors v1.7.0
 	github.com/securego/gosec v0.0.0-20200316084457-7da9f46445fd
@@ -56,14 +56,13 @@ require (
 	go.opencensus.io v0.22.4
 	go.uber.org/atomic v1.6.0
 	go.uber.org/zap v1.15.0
-	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20200615200032-f1bc736245b1
-	golang.org/x/text v0.3.3
-	google.golang.org/api v0.29.0 // indirect
-	google.golang.org/genproto v0.0.0-20200624020401-64a14ca9d1ad
+	golang.org/x/oauth2 v0.0.0-20210514164344-f6687ab2804c
+	golang.org/x/sys v0.0.0-20210423082822-04245dca01da
+	golang.org/x/text v0.3.6
+	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987
 	google.golang.org/grpc v1.31.0
 	google.golang.org/grpc/examples v0.0.0-20200728065043-dfc0c05b2da9 // indirect
 	google.golang.org/protobuf v1.25.0
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 	honnef.co/go/tools v0.0.1-2020.1.5
 )
